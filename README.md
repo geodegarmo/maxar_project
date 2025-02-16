@@ -55,11 +55,13 @@ Now test that this works after activating your kernel inside Visual Studio Code:
 
 https://code.visualstudio.com/docs/datascience/jupyter-kernel-management
 
-Test by running the `import modules` portion of the  access_Sentinel_2_data_aws_SF_Search.ipynb
+Test by running the `import modules` portion of the `access_Sentinel_2_data_aws_SF_Search.ipynb`
 
 <h2>Questions or Comments</h2>
 
 Feel free to contact me with any questions or comments at this email address christopher.degarmo@gmail.com.  
+
+Check back soon for more material where urban exists rural and heavily populated around the globe.
 
 Thank you very much for following along.
 
