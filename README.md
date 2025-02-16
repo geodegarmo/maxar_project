@@ -27,7 +27,7 @@ Dask: https://odc-stac.readthedocs.io/en/latest/intro.html
 
 <p>By using a requirements.txt file we skip the dependency issues when calling  `import modules`.</p>
 
-These are the steps for Unix/maxOS:
+These are the steps for Unix/macOS:
 
 See this page for windows: https://packaging.python.org/en/latest/guides/installing-using-pip-and-virtual-environments/
 
@@ -61,7 +61,7 @@ Test by running the `import modules` portion of the `access_Sentinel_2_data_aws_
 
 Feel free to contact me with any questions or comments at this email address christopher.degarmo@gmail.com.  
 
-Check back soon for more material where urban exists rural and heavily populated around the globe.
+Check back soon for more material where urban/rural exists around the globe.
 
 Thank you very much for following along.
 
