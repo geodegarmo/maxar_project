@@ -1,8 +1,9 @@
+# Using open-source tools like DASK AWS and Jupyter Notebooks for Sentinel2A Analysis
 <!DOCTYPE html>
 <html>
 <body>
 
-<p>Using open-source tools like DASK AWS and Jupyter Notebooks for Sentinel2A Analysis</p>
+<p>These tools are valuable for a global solution where we are able to calculate based on multiple lat/lon bounding box examples for a global solution.</p>
 
 <p></p>
 
