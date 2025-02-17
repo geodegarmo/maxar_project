@@ -1,4 +1,4 @@
-# Using open-source tools like DASK AWS and Jupyter Notebooks for Sentinel-2A Analysis
+# Using Open-Source tools and DASK, AWS, and Jupyter Notebook for Sentinel-2A Image Analysis
 <!DOCTYPE html>
 <html>
 <body>
@@ -6,7 +6,7 @@
 <p>These tools are valuable for a global solution.</p>
 
 
-<h1>Working With  Python and Kernels in .ipynb</h1>
+<h1>Working With  Python and Kernels in Ipykernel Jupyter Notebook</h1>
 
 <p>Download a GUI of your choice, for this example we used Visual Studio Code</p>
 
@@ -22,20 +22,19 @@ Dask: https://odc-stac.readthedocs.io/en/latest/intro.html
 
 `mkdir maxar` && `cd maxar` &&  `git clone https://github.com/geodegarmo/maxar_project.git` 
 
+<h2>Create a new virtual environment and Install Dependencies with A Requirements File.</h2>
 
-<h2>Create a new virtual environment and Install Dependencies Using the requirement.txt file</h2>
-
-<p>By using a requirements.txt file we skip the dependency issues when calling  `import modules`.</p>
+<p>By using a requirements.txt file we skip dependency issues.</p>
 
 These are the steps for Unix/macOS:
 
 See this page for windows: https://packaging.python.org/en/latest/guides/installing-using-pip-and-virtual-environments/
 
-Now, check that you are in your directory maxar.  
+Change directory to maxar.  
 
 If not, `cd maxar`
 
-Create a virtual env using pip:
+Create a virtual environment using pip:
 
 `python3 -m venv .venv`
 
@@ -51,7 +50,7 @@ Install using pip and the requirements.txt file:
 
 `pip install -r /path/to/requirements.txt`
 
-Now test that this works after activating your kernel inside Visual Studio Code:
+Activate your kernel, Visual Studio Code:
 
 https://code.visualstudio.com/docs/datascience/jupyter-kernel-management
 
