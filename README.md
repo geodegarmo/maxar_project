@@ -20,7 +20,7 @@ Dask: https://odc-stac.readthedocs.io/en/latest/intro.html
 
 <h2>Getting Started</h2>
 
-`mkdir maxar` && `cd maxar` &&  `git clone https://github.com/geodegarmo/maxar_project.git` 
+````mkdir maxar` && `cd maxar` &&  `git clone https://github.com/geodegarmo/maxar_project.git```` 
 
 <h2>Create a new virtual environment and Install Dependencies with A Requirements File.</h2>
 
@@ -36,19 +36,19 @@ If not, `cd maxar`
 
 Create a virtual environment using pip:
 
-`python3 -m venv .venv`
+````python3 -m venv .venv````
 
 Activate the virtual environment:
 
-`source .venv/bin/activate`
+```source .venv/bin/activate```
 
 Confirm that the virtual environment is activated, check the location of your python interpreter:
 
-`which python`
+```which python```
 
 Install using pip and the requirements.txt file:
 
-`pip install -r /path/to/requirements.txt`
+```pip install -r /path/to/requirements.txt```
 
 Activate your kernel, Visual Studio Code:
 
