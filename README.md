@@ -20,7 +20,7 @@ Dask: https://odc-stac.readthedocs.io/en/latest/intro.html
 
 <h2>Getting Started</h2>
 
-````mkdir maxar` && `cd maxar` &&  `git clone https://github.com/geodegarmo/maxar_project.git```` 
+````mkdir maxar && cd maxar && git clone https://github.com/geodegarmo/maxar_project.git```` 
 
 <h2>Create a new virtual environment and Install Dependencies with A Requirements File.</h2>
 
