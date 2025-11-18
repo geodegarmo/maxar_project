@@ -100,7 +100,12 @@ def validate_notebook(notebook_path):
         return False
 
 if __name__ == "__main__":
-    notebook_path = '../notebooks/north_carolina_hurricane_helene_analysis.ipynb'
+    import os
+    
+    # Get the directory of this script
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    # Go up one level to repo root, then into notebooks
+    notebook_path = os.path.join(script_dir, '..', 'notebooks', 'north_carolina_hurricane_helene_analysis.ipynb')
     
     success = validate_notebook(notebook_path)
     
