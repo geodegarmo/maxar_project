@@ -1,0 +1,700 @@
+#!/usr/bin/env python3
+"""
+Script to create the North Carolina Hurricane Helene analysis notebook
+"""
+import json
+
+def create_notebook():
+    """Create a comprehensive Jupyter notebook for NC Hurricane Helene analysis"""
+    
+    cells = []
+    
+    # Title and introduction
+    cells.append({
+        "cell_type": "markdown",
+        "metadata": {},
+        "source": [
+            "# North Carolina Hurricane Helene Analysis\n\n"
+            "This notebook analyzes water area changes in North Carolina before and after Hurricane Helene (September 27, 2024).\n\n"
+            "## Analysis Overview:\n"
+            "- Hurricane Helene date: September 27, 2024\n"
+            "- Before period: June 27, 2024 - September 27, 2024 (3 months before)\n"
+            "- After period: September 27, 2024 - December 27, 2024 (3 months after)\n"
+            "- Optional: 10-year historical analysis (2014-2024)\n"
+            "- Water detection using NDWI and MNDWI (Normalized Difference Water Index)\n"
+            "- EPSG Projection: EPSG:32617 (UTM Zone 17N for North Carolina)"
+        ]
+    })
+    
+    # Installation cell
+    cells.append({
+        "cell_type": "markdown",
+        "metadata": {},
+        "source": "## Install Required Packages (if needed)"
+    })
+    
+    cells.append({
+        "cell_type": "code",
+        "execution_count": None,
+        "metadata": {},
+        "outputs": [],
+        "source": "# !pip install pystac_client odc.stac folium matplotlib mapclassify geopandas"
+    })
+    
+    # Import libraries
+    cells.append({
+        "cell_type": "markdown",
+        "metadata": {},
+        "source": "## Import Required Libraries"
+    })
+    
+    cells.append({
+        "cell_type": "code",
+        "execution_count": None,
+        "metadata": {},
+        "outputs": [],
+        "source": [
+            "import dask.distributed\n"
+            "import folium\n"
+            "import geopandas as gpd\n"
+            "import numpy as np\n"
+            "import shapely.geometry\n"
+            "import matplotlib.pyplot as plt\n"
+            "from datetime import datetime, timedelta\n"
+            "from IPython.display import display\n"
+            "from pystac_client import Client\n"
+            "import xarray as xr\n\n"
+            "from odc.stac import configure_rio, stac_load\n\n"
+            "def convert_bounds(bbox, invert_y=False):\n"
+            "    \"\"\"\n"
+            "    Helper method for changing bounding box representation to leaflet notation\n"
+            "    ``(lon1, lat1, lon2, lat2) -> ((lat1,lon1),(lat2, lon2))``\n"
+            "    \"\"\"\n"
+            "    x1, y1, x2, y2 = bbox\n"
+            "    if invert_y:\n"
+            "        y1, y2 = y2, y1\n"
+            "    return ((y1, x1), (y2, x2))"
+        ]
+    })
+    
+    # Dask client
+    cells.append({
+        "cell_type": "markdown",
+        "metadata": {},
+        "source": "## Start Dask Client\n\nThis step is optional but improves load speed significantly."
+    })
+    
+    cells.append({
+        "cell_type": "code",
+        "execution_count": None,
+        "metadata": {},
+        "outputs": [],
+        "source": [
+            "client = dask.distributed.Client()\n"
+            "configure_rio(cloud_defaults=True, aws={\"aws_unsigned\": True}, client=client)\n"
+            "display(client)"
+        ]
+    })
+    
+    # Define AOI
+    cells.append({
+        "cell_type": "markdown",
+        "metadata": {},
+        "source": "## Define North Carolina Area of Interest\n\nWe'll focus on western North Carolina where Hurricane Helene caused significant flooding."
+    })
+    
+    cells.append({
+        "cell_type": "code",
+        "execution_count": None,
+        "metadata": {},
+        "outputs": [],
+        "source": [
+            "# Define North Carolina bounding box\n"
+            "# Focusing on Asheville and western NC area (heavily impacted by Hurricane Helene)\n"
+            "# Coordinates: longitude, latitude\n"
+            "nc_west_center = (-82.5515, 35.5951)  # Asheville, NC area\n\n"
+            "# Create bounding box (approximately 100km x 100km)\n"
+            "km2deg = 1.0 / 111\n"
+            "x, y = nc_west_center\n"
+            "r = 50 * km2deg  # 50 km radius\n\n"
+            "bbox = (x - r, y - r, x + r, y + r)\n"
+            "print(f\"Bounding box: {bbox}\")\n\n"
+            "# Hurricane Helene date\n"
+            "hurricane_date = datetime(2024, 9, 27)\n"
+            "print(f\"Hurricane Helene date: {hurricane_date.strftime('%Y-%m-%d')}\")"
+        ]
+    })
+    
+    # Query before
+    cells.append({
+        "cell_type": "markdown",
+        "metadata": {},
+        "source": "## Query Sentinel-2 Data: 3 Months Before Hurricane Helene"
+    })
+    
+    cells.append({
+        "cell_type": "code",
+        "execution_count": None,
+        "metadata": {},
+        "outputs": [],
+        "source": [
+            "# Define date ranges\n"
+            "before_start = (hurricane_date - timedelta(days=90)).strftime('%Y-%m-%d')\n"
+            "before_end = hurricane_date.strftime('%Y-%m-%d')\n\n"
+            "print(f\"Before period: {before_start} to {before_end}\")\n\n"
+            "# Connect to STAC catalog\n"
+            "catalog = Client.open(\"https://earth-search.aws.element84.com/v1/\")\n\n"
+            "# Query for data before the hurricane\n"
+            "query_before = catalog.search(\n"
+            "    collections=[\"sentinel-2-l2a\"],\n"
+            "    datetime=f\"{before_start}/{before_end}\",\n"
+            "    bbox=bbox,\n"
+            "    limit=100,\n"
+            "    query={\"eo:cloud_cover\": {\"lt\": 20}}  # Less than 20% cloud cover\n"
+            ")\n\n"
+            "items_before = list(query_before.items())\n"
+            "print(f\"Found {len(items_before)} datasets before the hurricane\")\n\n"
+            "# Convert to GeoJSON\n"
+            "stac_json_before = query_before.item_collection_as_dict()"
+        ]
+    })
+    
+    # Query after
+    cells.append({
+        "cell_type": "markdown",
+        "metadata": {},
+        "source": "## Query Sentinel-2 Data: 3 Months After Hurricane Helene"
+    })
+    
+    cells.append({
+        "cell_type": "code",
+        "execution_count": None,
+        "metadata": {},
+        "outputs": [],
+        "source": [
+            "# Define date ranges\n"
+            "after_start = hurricane_date.strftime('%Y-%m-%d')\n"
+            "after_end = (hurricane_date + timedelta(days=90)).strftime('%Y-%m-%d')\n\n"
+            "print(f\"After period: {after_start} to {after_end}\")\n\n"
+            "# Query for data after the hurricane\n"
+            "query_after = catalog.search(\n"
+            "    collections=[\"sentinel-2-l2a\"],\n"
+            "    datetime=f\"{after_start}/{after_end}\",\n"
+            "    bbox=bbox,\n"
+            "    limit=100,\n"
+            "    query={\"eo:cloud_cover\": {\"lt\": 20}}  # Less than 20% cloud cover\n"
+            ")\n\n"
+            "items_after = list(query_after.items())\n"
+            "print(f\"Found {len(items_after)} datasets after the hurricane\")\n\n"
+            "# Convert to GeoJSON\n"
+            "stac_json_after = query_after.item_collection_as_dict()"
+        ]
+    })
+    
+    # Visualize results
+    cells.append({
+        "cell_type": "markdown",
+        "metadata": {},
+        "source": "## Visualize Query Results"
+    })
+    
+    cells.append({
+        "cell_type": "code",
+        "execution_count": None,
+        "metadata": {},
+        "outputs": [],
+        "source": [
+            "# Create GeoDataFrames\n"
+            "if len(items_before) > 0:\n"
+            "    gdf_before = gpd.GeoDataFrame.from_features(stac_json_before, \"epsg:4326\")\n"
+            "    print(f\"\\nBefore hurricane - {len(gdf_before)} granules\")\n"
+            "    display(gdf_before[['datetime', 'eo:cloud_cover']].head())\n\n"
+            "if len(items_after) > 0:\n"
+            "    gdf_after = gpd.GeoDataFrame.from_features(stac_json_after, \"epsg:4326\")\n"
+            "    print(f\"\\nAfter hurricane - {len(gdf_after)} granules\")\n"
+            "    display(gdf_after[['datetime', 'eo:cloud_cover']].head())"
+        ]
+    })
+    
+    # Load data with EPSG
+    cells.append({
+        "cell_type": "markdown",
+        "metadata": {},
+        "source": "## Load Data with North Carolina EPSG:32617 Projection\n\nWe use EPSG:32617 (UTM Zone 17N) which is appropriate for North Carolina."
+    })
+    
+    cells.append({
+        "cell_type": "code",
+        "execution_count": None,
+        "metadata": {},
+        "outputs": [],
+        "source": [
+            "# Load data before hurricane\n"
+            "if len(items_before) > 0:\n"
+            "    xx_before = stac_load(\n"
+            "        items_before,\n"
+            "        bands=[\"red\", \"green\", \"blue\", \"nir\", \"swir16\"],  # Include NIR and SWIR for water detection\n"
+            "        crs=\"EPSG:32617\",  # UTM Zone 17N for North Carolina\n"
+            "        resolution=100,  # 100m resolution\n"
+            "        chunks={\"x\": 2048, \"y\": 2048},\n"
+            "        groupby=\"solar_day\",\n"
+            "        bbox=bbox,\n"
+            "    )\n"
+            "    print(f\"\\nBefore hurricane data shape: {xx_before.dims}\")\n"
+            "    print(xx_before)"
+        ]
+    })
+    
+    cells.append({
+        "cell_type": "code",
+        "execution_count": None,
+        "metadata": {},
+        "outputs": [],
+        "source": [
+            "# Load data after hurricane\n"
+            "if len(items_after) > 0:\n"
+            "    xx_after = stac_load(\n"
+            "        items_after,\n"
+            "        bands=[\"red\", \"green\", \"blue\", \"nir\", \"swir16\"],\n"
+            "        crs=\"EPSG:32617\",  # UTM Zone 17N for North Carolina\n"
+            "        resolution=100,  # 100m resolution\n"
+            "        chunks={\"x\": 2048, \"y\": 2048},\n"
+            "        groupby=\"solar_day\",\n"
+            "        bbox=bbox,\n"
+            "    )\n"
+            "    print(f\"\\nAfter hurricane data shape: {xx_after.dims}\")\n"
+            "    print(xx_after)"
+        ]
+    })
+    
+    # Water detection function
+    cells.append({
+        "cell_type": "markdown",
+        "metadata": {},
+        "source": [
+            "## Water Detection Function\n\n"
+            "We'll use NDWI (Normalized Difference Water Index) to detect water areas.\n"
+            "NDWI = (Green - NIR) / (Green + NIR)\n\n"
+            "We'll also use MNDWI (Modified NDWI) for better water detection:\n"
+            "MNDWI = (Green - SWIR) / (Green + SWIR)"
+        ]
+    })
+    
+    cells.append({
+        "cell_type": "code",
+        "execution_count": None,
+        "metadata": {},
+        "outputs": [],
+        "source": [
+            "def calculate_ndwi(data):\n"
+            "    \"\"\"\n"
+            "    Calculate NDWI (Normalized Difference Water Index)\n"
+            "    NDWI = (Green - NIR) / (Green + NIR)\n"
+            "    \n"
+            "    Water typically has NDWI > 0\n"
+            "    \"\"\"\n"
+            "    green = data['green'].astype('float32')\n"
+            "    nir = data['nir'].astype('float32')\n"
+            "    \n"
+            "    ndwi = (green - nir) / (green + nir + 1e-10)  # Add small value to avoid division by zero\n"
+            "    return ndwi\n\n"
+            "def calculate_mndwi(data):\n"
+            "    \"\"\"\n"
+            "    Calculate MNDWI (Modified Normalized Difference Water Index)\n"
+            "    MNDWI = (Green - SWIR) / (Green + SWIR)\n"
+            "    \n"
+            "    Better for distinguishing water from built-up areas\n"
+            "    Water typically has MNDWI > 0\n"
+            "    \"\"\"\n"
+            "    green = data['green'].astype('float32')\n"
+            "    swir = data['swir16'].astype('float32')\n"
+            "    \n"
+            "    mndwi = (green - swir) / (green + swir + 1e-10)\n"
+            "    return mndwi\n\n"
+            "def create_water_mask(data, threshold=0.0, use_mndwi=True):\n"
+            "    \"\"\"\n"
+            "    Create a binary water mask\n"
+            "    \n"
+            "    Args:\n"
+            "        data: xarray dataset with required bands\n"
+            "        threshold: threshold value for water detection (default 0.0)\n"
+            "        use_mndwi: if True, use MNDWI; otherwise use NDWI\n"
+            "    \n"
+            "    Returns:\n"
+            "        Binary mask where 1 = water, 0 = non-water\n"
+            "    \"\"\"\n"
+            "    if use_mndwi:\n"
+            "        index = calculate_mndwi(data)\n"
+            "    else:\n"
+            "        index = calculate_ndwi(data)\n"
+            "    \n"
+            "    water_mask = (index > threshold).astype(int)\n"
+            "    return water_mask, index\n\n"
+            "print(\"Water detection functions defined.\")"
+        ]
+    })
+    
+    # Process before data
+    cells.append({
+        "cell_type": "markdown",
+        "metadata": {},
+        "source": "## Compute and Visualize Water Masks - Before Hurricane"
+    })
+    
+    cells.append({
+        "cell_type": "code",
+        "execution_count": None,
+        "metadata": {},
+        "outputs": [],
+        "source": [
+            "if len(items_before) > 0:\n"
+            "    # Compute data\n"
+            "    print(\"Loading before hurricane data...\")\n"
+            "    xx_before_computed = xx_before.compute()\n"
+            "    \n"
+            "    # Create water mask for the most recent date before hurricane\n"
+            "    if len(xx_before_computed.time) > 0:\n"
+            "        latest_before = xx_before_computed.isel(time=-1)  # Get most recent\n"
+            "        water_mask_before, mndwi_before = create_water_mask(latest_before, use_mndwi=True)\n"
+            "        \n"
+            "        print(f\"\\nBefore hurricane - Date: {latest_before.time.values}\")\n"
+            "        print(f\"Water pixels detected: {water_mask_before.sum().values:,}\")\n"
+            "        print(f\"Total pixels: {water_mask_before.size:,}\")\n"
+            "        print(f\"Water percentage: {(water_mask_before.sum() / water_mask_before.size * 100).values:.2f}%\")"
+        ]
+    })
+    
+    cells.append({
+        "cell_type": "code",
+        "execution_count": None,
+        "metadata": {},
+        "outputs": [],
+        "source": [
+            "if len(items_before) > 0 and len(xx_before_computed.time) > 0:\n"
+            "    # Visualize RGB and water mask\n"
+            "    fig, axes = plt.subplots(1, 3, figsize=(18, 5))\n"
+            "    \n"
+            "    # RGB composite\n"
+            "    rgb = np.stack([\n"
+            "        latest_before['red'].values,\n"
+            "        latest_before['green'].values,\n"
+            "        latest_before['blue'].values\n"
+            "    ], axis=-1)\n"
+            "    rgb = np.clip(rgb / 3000, 0, 1)  # Normalize to 0-1\n"
+            "    \n"
+            "    axes[0].imshow(rgb)\n"
+            "    axes[0].set_title('RGB Composite - Before Hurricane')\n"
+            "    axes[0].axis('off')\n"
+            "    \n"
+            "    # MNDWI\n"
+            "    im1 = axes[1].imshow(mndwi_before, cmap='RdYlBu', vmin=-0.5, vmax=0.5)\n"
+            "    axes[1].set_title('MNDWI - Before Hurricane')\n"
+            "    axes[1].axis('off')\n"
+            "    plt.colorbar(im1, ax=axes[1], fraction=0.046, pad=0.04)\n"
+            "    \n"
+            "    # Water mask\n"
+            "    im2 = axes[2].imshow(water_mask_before, cmap='Blues', vmin=0, vmax=1)\n"
+            "    axes[2].set_title('Water Mask - Before Hurricane')\n"
+            "    axes[2].axis('off')\n"
+            "    plt.colorbar(im2, ax=axes[2], fraction=0.046, pad=0.04)\n"
+            "    \n"
+            "    plt.tight_layout()\n"
+            "    plt.show()"
+        ]
+    })
+    
+    # Process after data
+    cells.append({
+        "cell_type": "markdown",
+        "metadata": {},
+        "source": "## Compute and Visualize Water Masks - After Hurricane"
+    })
+    
+    cells.append({
+        "cell_type": "code",
+        "execution_count": None,
+        "metadata": {},
+        "outputs": [],
+        "source": [
+            "if len(items_after) > 0:\n"
+            "    # Compute data\n"
+            "    print(\"Loading after hurricane data...\")\n"
+            "    xx_after_computed = xx_after.compute()\n"
+            "    \n"
+            "    # Create water mask for the earliest date after hurricane\n"
+            "    if len(xx_after_computed.time) > 0:\n"
+            "        earliest_after = xx_after_computed.isel(time=0)  # Get earliest after\n"
+            "        water_mask_after, mndwi_after = create_water_mask(earliest_after, use_mndwi=True)\n"
+            "        \n"
+            "        print(f\"\\nAfter hurricane - Date: {earliest_after.time.values}\")\n"
+            "        print(f\"Water pixels detected: {water_mask_after.sum().values:,}\")\n"
+            "        print(f\"Total pixels: {water_mask_after.size:,}\")\n"
+            "        print(f\"Water percentage: {(water_mask_after.sum() / water_mask_after.size * 100).values:.2f}%\")"
+        ]
+    })
+    
+    cells.append({
+        "cell_type": "code",
+        "execution_count": None,
+        "metadata": {},
+        "outputs": [],
+        "source": [
+            "if len(items_after) > 0 and len(xx_after_computed.time) > 0:\n"
+            "    # Visualize RGB and water mask\n"
+            "    fig, axes = plt.subplots(1, 3, figsize=(18, 5))\n"
+            "    \n"
+            "    # RGB composite\n"
+            "    rgb = np.stack([\n"
+            "        earliest_after['red'].values,\n"
+            "        earliest_after['green'].values,\n"
+            "        earliest_after['blue'].values\n"
+            "    ], axis=-1)\n"
+            "    rgb = np.clip(rgb / 3000, 0, 1)  # Normalize to 0-1\n"
+            "    \n"
+            "    axes[0].imshow(rgb)\n"
+            "    axes[0].set_title('RGB Composite - After Hurricane')\n"
+            "    axes[0].axis('off')\n"
+            "    \n"
+            "    # MNDWI\n"
+            "    im1 = axes[1].imshow(mndwi_after, cmap='RdYlBu', vmin=-0.5, vmax=0.5)\n"
+            "    axes[1].set_title('MNDWI - After Hurricane')\n"
+            "    axes[1].axis('off')\n"
+            "    plt.colorbar(im1, ax=axes[1], fraction=0.046, pad=0.04)\n"
+            "    \n"
+            "    # Water mask\n"
+            "    im2 = axes[2].imshow(water_mask_after, cmap='Blues', vmin=0, vmax=1)\n"
+            "    axes[2].set_title('Water Mask - After Hurricane')\n"
+            "    axes[2].axis('off')\n"
+            "    plt.colorbar(im2, ax=axes[2], fraction=0.046, pad=0.04)\n"
+            "    \n"
+            "    plt.tight_layout()\n"
+            "    plt.show()"
+        ]
+    })
+    
+    # Compare
+    cells.append({
+        "cell_type": "markdown",
+        "metadata": {},
+        "source": "## Compare Water Areas Before and After Hurricane"
+    })
+    
+    cells.append({
+        "cell_type": "code",
+        "execution_count": None,
+        "metadata": {},
+        "outputs": [],
+        "source": [
+            "if (len(items_before) > 0 and len(items_after) > 0 and \n"
+            "    len(xx_before_computed.time) > 0 and len(xx_after_computed.time) > 0):\n"
+            "    \n"
+            "    # Calculate change in water extent\n"
+            "    water_change = water_mask_after.astype(float) - water_mask_before.astype(float)\n"
+            "    \n"
+            "    # Statistics\n"
+            "    new_water = (water_change > 0).sum().values\n"
+            "    lost_water = (water_change < 0).sum().values\n"
+            "    unchanged = (water_change == 0).sum().values\n"
+            "    \n"
+            "    print(\"\\n=== Water Area Change Analysis ===\")\n"
+            "    print(f\"New water areas (flooding): {new_water:,} pixels\")\n"
+            "    print(f\"Reduced water areas: {lost_water:,} pixels\")\n"
+            "    print(f\"Unchanged areas: {unchanged:,} pixels\")\n"
+            "    print(f\"Net change: {new_water - lost_water:,} pixels\")\n"
+            "    \n"
+            "    # Visualize change\n"
+            "    fig, ax = plt.subplots(1, 1, figsize=(10, 8))\n"
+            "    im = ax.imshow(water_change, cmap='RdBu_r', vmin=-1, vmax=1)\n"
+            "    ax.set_title('Water Area Change: Before vs After Hurricane Helene\\n(Blue = New Water/Flooding, Red = Water Loss)')\n"
+            "    ax.axis('off')\n"
+            "    plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04, label='Change')\n"
+            "    plt.tight_layout()\n"
+            "    plt.show()"
+        ]
+    })
+    
+    # 10-year analysis
+    cells.append({
+        "cell_type": "markdown",
+        "metadata": {},
+        "source": "## 10-Year Historical Analysis (Optional)\n\nThis section allows for querying and analyzing water extent over a 10-year period (2014-2024)."
+    })
+    
+    cells.append({
+        "cell_type": "code",
+        "execution_count": None,
+        "metadata": {},
+        "outputs": [],
+        "source": [
+            "def query_historical_data(bbox, start_year, end_year, month=9):\n"
+            "    \"\"\"\n"
+            "    Query historical Sentinel-2 data for multiple years.\n"
+            "    \n"
+            "    Args:\n"
+            "        bbox: Bounding box\n"
+            "        start_year: Start year for analysis\n"
+            "        end_year: End year for analysis\n"
+            "        month: Month to focus on (default 9 for September, hurricane season)\n"
+            "    \n"
+            "    Returns:\n"
+            "        Dictionary with years as keys and STAC items as values\n"
+            "    \"\"\"\n"
+            "    catalog = Client.open(\"https://earth-search.aws.element84.com/v1/\")\n"
+            "    historical_data = {}\n"
+            "    \n"
+            "    # Note: Sentinel-2 data is available from 2015 onwards\n"
+            "    actual_start_year = max(start_year, 2015)\n"
+            "    \n"
+            "    for year in range(actual_start_year, end_year + 1):\n"
+            "        # Query for the same time period each year\n"
+            "        date_start = f\"{year}-{month:02d}-01\"\n"
+            "        date_end = f\"{year}-{month:02d}-30\"\n"
+            "        \n"
+            "        print(f\"Querying year {year}: {date_start} to {date_end}\")\n"
+            "        \n"
+            "        query = catalog.search(\n"
+            "            collections=[\"sentinel-2-l2a\"],\n"
+            "            datetime=f\"{date_start}/{date_end}\",\n"
+            "            bbox=bbox,\n"
+            "            limit=10,\n"
+            "            query={\"eo:cloud_cover\": {\"lt\": 20}}\n"
+            "        )\n"
+            "        \n"
+            "        items = list(query.items())\n"
+            "        historical_data[year] = items\n"
+            "        print(f\"  Found {len(items)} datasets\")\n"
+            "    \n"
+            "    return historical_data\n\n"
+            "print(\"Historical analysis function defined.\")\n"
+            "print(\"\\nTo run 10-year analysis, execute the next cell.\")\n"
+            "print(\"Note: This will take significant time to download and process data.\")"
+        ]
+    })
+    
+    cells.append({
+        "cell_type": "code",
+        "execution_count": None,
+        "metadata": {},
+        "outputs": [],
+        "source": [
+            "# Uncomment to run 10-year historical analysis\n"
+            "# WARNING: This will take considerable time and resources\n\n"
+            "# historical_data = query_historical_data(bbox, start_year=2014, end_year=2024, month=9)\n\n"
+            "# # Process each year\n"
+            "# historical_water_stats = {}\n"
+            "# for year, items in historical_data.items():\n"
+            "#     if len(items) > 0:\n"
+            "#         # Load data for this year\n"
+            "#         xx_year = stac_load(\n"
+            "#             items,\n"
+            "#             bands=[\"green\", \"nir\", \"swir16\"],\n"
+            "#             crs=\"EPSG:32617\",\n"
+            "#             resolution=100,\n"
+            "#             chunks={\"x\": 2048, \"y\": 2048},\n"
+            "#             groupby=\"solar_day\",\n"
+            "#             bbox=bbox,\n"
+            "#         )\n"
+            "#         \n"
+            "#         xx_year_computed = xx_year.compute()\n"
+            "#         \n"
+            "#         if len(xx_year_computed.time) > 0:\n"
+            "#             # Use median composite for the month\n"
+            "#             median_data = xx_year_computed.median(dim='time')\n"
+            "#             water_mask_year, _ = create_water_mask(median_data, use_mndwi=True)\n"
+            "#             \n"
+            "#             water_pct = (water_mask_year.sum() / water_mask_year.size * 100).values\n"
+            "#             historical_water_stats[year] = water_pct\n"
+            "#             print(f\"Year {year}: {water_pct:.2f}% water coverage\")\n\n"
+            "# # Plot historical trend\n"
+            "# if historical_water_stats:\n"
+            "#     years = list(historical_water_stats.keys())\n"
+            "#     water_pcts = list(historical_water_stats.values())\n"
+            "#     \n"
+            "#     plt.figure(figsize=(12, 6))\n"
+            "#     plt.plot(years, water_pcts, marker='o', linewidth=2, markersize=8)\n"
+            "#     plt.axvline(x=2024, color='red', linestyle='--', label='Hurricane Helene (2024)')\n"
+            "#     plt.xlabel('Year', fontsize=12)\n"
+            "#     plt.ylabel('Water Coverage (%)', fontsize=12)\n"
+            "#     plt.title('10-Year Water Coverage Trend - North Carolina (September)', fontsize=14)\n"
+            "#     plt.grid(True, alpha=0.3)\n"
+            "#     plt.legend()\n"
+            "#     plt.tight_layout()\n"
+            "#     plt.show()"
+        ]
+    })
+    
+    # Summary
+    cells.append({
+        "cell_type": "markdown",
+        "metadata": {},
+        "source": [
+            "## Summary and Export\n\n"
+            "This notebook provides tools to:\n"
+            "1. Query Sentinel-2 imagery for North Carolina before and after Hurricane Helene\n"
+            "2. Use EPSG:32617 (UTM Zone 17N) projection for North Carolina\n"
+            "3. Detect water areas using NDWI and MNDWI indices\n"
+            "4. Compare water extent before and after the hurricane\n"
+            "5. Optionally analyze 10-year historical trends\n\n"
+            "### Key Parameters:\n"
+            "- **EPSG Code**: 32617 (UTM Zone 17N)\n"
+            "- **Water Detection**: MNDWI (Modified Normalized Difference Water Index)\n"
+            "- **Hurricane Date**: September 27, 2024\n"
+            "- **Analysis Period**: 3 months before and after\n"
+            "- **Study Area**: Western North Carolina (Asheville region)"
+        ]
+    })
+    
+    cells.append({
+        "cell_type": "code",
+        "execution_count": None,
+        "metadata": {},
+        "outputs": [],
+        "source": [
+            "# Export water masks to GeoTIFF (optional)\n"
+            "# Uncomment to save results\n\n"
+            "# if len(items_before) > 0 and len(xx_before_computed.time) > 0:\n"
+            "#     water_mask_before.rio.to_raster(\"../outputs/water_mask_before_hurricane.tif\")\n"
+            "#     print(\"Saved: water_mask_before_hurricane.tif\")\n\n"
+            "# if len(items_after) > 0 and len(xx_after_computed.time) > 0:\n"
+            "#     water_mask_after.rio.to_raster(\"../outputs/water_mask_after_hurricane.tif\")\n"
+            "#     print(\"Saved: water_mask_after_hurricane.tif\")\n\n"
+            "# if (len(items_before) > 0 and len(items_after) > 0 and \n"
+            "#     len(xx_before_computed.time) > 0 and len(xx_after_computed.time) > 0):\n"
+            "#     water_change.rio.to_raster(\"../outputs/water_change_hurricane_helene.tif\")\n"
+            "#     print(\"Saved: water_change_hurricane_helene.tif\")"
+        ]
+    })
+    
+    # Create notebook structure
+    notebook = {
+        "cells": cells,
+        "metadata": {
+            "kernelspec": {
+                "display_name": "Python 3",
+                "language": "python",
+                "name": "python3"
+            },
+            "language_info": {
+                "codemirror_mode": {"name": "ipython", "version": 3},
+                "file_extension": ".py",
+                "mimetype": "text/x-python",
+                "name": "python",
+                "nbconvert_exporter": "python",
+                "pygments_lexer": "ipython3",
+                "version": "3.8.0"
+            }
+        },
+        "nbformat": 4,
+        "nbformat_minor": 4
+    }
+    
+    return notebook
+
+if __name__ == "__main__":
+    notebook = create_notebook()
+    
+    # Save to file
+    with open('../notebooks/north_carolina_hurricane_helene_analysis.ipynb', 'w') as f:
+        json.dump(notebook, f, indent=1)
+    
+    print("North Carolina Hurricane Helene analysis notebook created successfully!")
